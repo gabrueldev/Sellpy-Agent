@@ -7,7 +7,7 @@ from datetime import timedelta
 from conftest import text, response
 import routes.whatsapp as whatsapp_route
 from database import models
-from database.models import utcnow
+from database.models import utcnow_without_timezone
 from services import whatsapp
 from workers.remind_worker import send_due_reminders
 
@@ -45,8 +45,17 @@ def test_mensagem_do_whatsapp_e_respondida(client, fake_claude, monkeypatch):
 
     assert enviados == [("5512999999999", "Anotado ☕")]
 
-    # A Meta reenviou a mesma mensagem: não responde de novo
-    client.post("/webhook/whatsapp", content=body, headers=headers)
+def test_mensagem_reenviada_pela_meta_nao_e_respondida_de_novo(client, fake_claude, monkeypatch):
+    enviados = []
+    monkeypatch.setattr(whatsapp, "send_message", lambda phone, text: enviados.append(text))
+    fake_claude(response(text("Anotado ☕")))
+
+    body = json.dumps(payload()).encode()
+    headers = {"X-Hub-Signature-256": assinatura(body), "Content-Type": "application/json"}
+    primeira_entrega = client.post("/webhook/whatsapp", content=body, headers=headers)
+    reenvio_da_meta = client.post("/webhook/whatsapp", content=body, headers=headers)
+
+    assert primeira_entrega.status_code == reenvio_da_meta.status_code == 200
     assert len(enviados) == 1
 
 def test_limite_diario(db, monkeypatch, fake_claude):
@@ -74,7 +83,7 @@ def test_demo_valida_entrada(client):
     assert client.post("/demo/chat", json={"session_id": str(uuid.uuid4()), "message": ""}).status_code == 422
 
 def test_demo_limite_global(client, monkeypatch, fake_claude):
-    monkeypatch.setattr("routes.demo.DEMO_GLOBAL_LIMIT", 1)
+    monkeypatch.setattr("routes.demo.DEMO_DAILY_LIMIT_ALL_VISITORS", 1)
     fake_claude(response(text("primeira")))
 
     client.post("/demo/chat", json={"session_id": str(uuid.uuid4()), "message": "oi"})
@@ -85,11 +94,14 @@ def test_lembrete_vencido_e_enviado(db, user, monkeypatch):
     enviados = []
     monkeypatch.setattr(whatsapp, "send_message", lambda phone, text: enviados.append((phone, text)))
 
-    db.add(models.Tasks(user_id=user.id, title="pagar fornecedor", remind_at=utcnow() - timedelta(minutes=1)))
-    db.add(models.Tasks(user_id=user.id, title="futuro", remind_at=utcnow() + timedelta(days=1)))
+    db.add(models.Tasks(user_id=user.id, title="pagar fornecedor", remind_at=utcnow_without_timezone() - timedelta(minutes=1)))
+    db.add(models.Tasks(user_id=user.id, title="futuro", remind_at=utcnow_without_timezone() + timedelta(days=1)))
     db.commit()
 
-    assert send_due_reminders() == 1
+    enviados_na_primeira_rodada = send_due_reminders()
+    enviados_na_segunda_rodada = send_due_reminders()
+
+    assert enviados_na_primeira_rodada == 1
+    assert enviados_na_segunda_rodada == 0
     assert enviados[0][0] == "5512999999999"
     assert "pagar fornecedor" in enviados[0][1]
-    assert send_due_reminders() == 0  # não manda duas vezes

@@ -1,10 +1,10 @@
 import os
 
 from database import models
-from tools.dates import now_local
+from tools.dates import now_brasilia
 
 DAILY_LIMIT = int(os.getenv("SELLPY_DAILY_LIMIT", "40"))
-DEMO_DAILY_LIMIT = int(os.getenv("SELLPY_DEMO_DAILY_LIMIT", "20"))
+DEMO_DAILY_LIMIT_PER_VISITOR = int(os.getenv("SELLPY_DEMO_LIMIT_PER_VISITOR", "20"))
 
 def get_or_create_user(db, external_id):
     user = db.query(models.User).filter_by(external_id=external_id).first()
@@ -14,14 +14,13 @@ def get_or_create_user(db, external_id):
         db.commit()
     return user
 
-def use_message_quota(db, user):
-    """Conta a mensagem do dia. Devolve False quando o limite estourou (protege o custo da IA)."""
-    hoje = now_local().date()
+def try_to_consume_daily_message(db, user):
+    hoje = now_brasilia().date()
     if user.messages_date != hoje:
         user.messages_date = hoje
         user.messages_today = 0
 
-    limit = DAILY_LIMIT if user.is_whatsapp else DEMO_DAILY_LIMIT
+    limit = DAILY_LIMIT if user.is_whatsapp else DEMO_DAILY_LIMIT_PER_VISITOR
     if user.messages_today >= limit:
         return False
 

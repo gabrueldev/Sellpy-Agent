@@ -55,6 +55,22 @@ Com Docker (sobe o Postgres junto):
 
     docker compose up --build
 
+### Variáveis do `.env`
+
+| Variável | Para que serve |
+|---|---|
+| `ANTHROPIC_API_KEY` | Chave da IA ([console.anthropic.com](https://console.anthropic.com) → API Keys). Única obrigatória para testar |
+| `SELLPY_MODEL` | Modelo do Claude. Vazio usa `claude-haiku-5-5`, o mais barato |
+| `DATABASE_URL` | Postgres. Vazio usa um SQLite local (`sellpy.db`) |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | Dados do app na Meta (*WhatsApp > API Setup*). Só para usar pelo WhatsApp |
+| `WHATSAPP_VERIFY_TOKEN` | Um texto qualquer que você inventa e repete no painel da Meta ao cadastrar o webhook |
+| `WHATSAPP_APP_SECRET` | *App settings > Basic* na Meta. Serve para conferir que as mensagens vieram mesmo da Meta |
+| `SELLPY_ENV` | `dev` aceita webhook sem assinatura se não houver `WHATSAPP_APP_SECRET`. Em produção use `production` |
+| `SELLPY_DAILY_LIMIT` | Mensagens por dia para cada número de WhatsApp |
+| `SELLPY_DEMO_LIMIT_PER_VISITOR` | Mensagens por dia para cada visitante do chat web |
+| `SELLPY_DEMO_LIMIT_ALL_VISITORS` | Mensagens por dia somando todos os visitantes do chat web |
+| `SELLPY_DEMO_ENABLED` | `false` desliga o chat web |
+
 ## Como funciona
 
 ```

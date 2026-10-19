@@ -7,7 +7,7 @@ import agents.sellpy_agent as agent
 from database import models
 from database.connect import Sessionlocal
 from services import whatsapp
-from services.users import get_or_create_user, use_message_quota, LIMIT_MESSAGE
+from services.users import get_or_create_user, try_to_consume_daily_message, LIMIT_MESSAGE
 
 logger = logging.getLogger("sellpy")
 
@@ -19,24 +19,27 @@ def verify_webhook(
     token: str = Query(None, alias="hub.verify_token"),
     challenge: str = Query(None, alias="hub.challenge"),
 ):
-    # A Meta chama essa rota uma vez, quando você cadastra o webhook no painel
     if mode == "subscribe" and token and token == os.getenv("WHATSAPP_VERIFY_TOKEN"):
         return Response(content=challenge, media_type="text/plain")
     raise HTTPException(status_code=403, detail="Token de verificação inválido")
 
+def is_first_delivery(db, message_id):
+    try:
+        db.add(models.AnsweredWhatsAppMessage(id=message_id))
+        db.commit()
+        return True
+    except IntegrityError:
+        db.rollback()
+        return False
+
 def handle_message(message_id, phone, text):
     db = Sessionlocal()
     try:
-        # Se a Meta reenviar a mesma mensagem, o id repetido quebra a chave primária e paramos aqui
-        try:
-            db.add(models.ProcessedMessage(id=message_id))
-            db.commit()
-        except IntegrityError:
-            db.rollback()
+        if not is_first_delivery(db, message_id):
             return
 
-        user = get_or_create_user(db, f"wa:{phone}")
-        if not use_message_quota(db, user):
+        user = get_or_create_user(db, f"{models.WHATSAPP_PREFIX}{phone}")
+        if not try_to_consume_daily_message(db, user):
             whatsapp.send_message(phone, LIMIT_MESSAGE)
             return
 
@@ -48,12 +51,11 @@ def handle_message(message_id, phone, text):
         db.close()
 
 @router.post("")
-async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
+async def receive_webhook_and_answer_in_background(request: Request, background_tasks: BackgroundTasks):
     body = await request.body()
-    if not whatsapp.valid_signature(body, request.headers.get("X-Hub-Signature-256")):
+    if not whatsapp.is_signed_by_meta(body, request.headers.get("X-Hub-Signature-256")):
         raise HTTPException(status_code=401, detail="Assinatura inválida")
 
-    # Responde 200 na hora e processa depois; se demorar, a Meta acha que falhou e reenvia
     for message_id, phone, text in whatsapp.extract_text_messages(await request.json()):
         background_tasks.add_task(handle_message, message_id, phone, text)
     return {"status": "ok"}

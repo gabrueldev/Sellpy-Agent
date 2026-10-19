@@ -1,7 +1,7 @@
 from datetime import date
 
 from database import models
-from .dates import now_local, brl
+from .dates import now_brasilia, brl
 
 def goal_progress(goal):
     progress = min(goal.current_amount / goal.amount * 100, 100) if goal.amount else 0
@@ -28,8 +28,7 @@ def create_goal(db, user, title, amount, until_date=None):
     db.commit()
     return f"Meta '{title}' de {brl(amount)} criada!"
 
-def update_goals(db, user, value):
-    """Soma um ganho nas metas ativas e devolve um texto com o progresso."""
+def add_income_to_goals_and_describe_progress(db, user, value):
     goals = active_goals(db, user)
     message = ""
 
@@ -71,7 +70,7 @@ def goals_status(db, user):
         if remaining and avg_income > 0:
             linha += f" - no ritmo atual, faltam cerca de {round(remaining / avg_income)} dias"
         if goal.until_date:
-            dias = (goal.until_date - now_local().date()).days
+            dias = (goal.until_date - now_brasilia().date()).days
             linha += f" - prazo em {dias} dias" if dias >= 0 else " - prazo vencido"
         linhas.append(linha)
     return "\n".join(linhas)
