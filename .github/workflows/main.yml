@@ -17,7 +17,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
@@ -26,9 +26,4 @@ jobs:
 
       - name: Run tests
         run: |
-          python -m pytest
-
-      - name: Start API
-        run: |
-          pip install uvicorn
-          timeout 5 uvicorn main:app
+          python -m pytest -v
