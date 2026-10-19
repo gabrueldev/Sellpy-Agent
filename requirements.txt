@@ -1,9 +1,8 @@
 python-dotenv
 fastapi
 uvicorn
-openai
-pandas
+anthropic>=1.15
+httpx
 sqlalchemy
 psycopg2-binary
 pytest
-httpx
