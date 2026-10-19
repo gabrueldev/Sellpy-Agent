@@ -51,3 +51,7 @@ def test_para_depois_de_muitas_rodadas(db, user, fake_claude):
     reply = agent.sellpy_agent(db, user, "lista minhas notas")
     assert reply == "Feito! ✅"
     assert len(fake.calls) == agent.MAX_TOOL_ROUNDS
+
+def test_sem_chave_explica_o_que_falta(db, user, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY")
+    assert "ANTHROPIC_API_KEY" in agent.sellpy_agent(db, user, "oi")

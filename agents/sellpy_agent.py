@@ -49,7 +49,19 @@ def save_message(db, user, role, content):
     db.add(models.ChatMessage(user_id=user.id, role=role, content=content))
     db.commit()
 
+NO_KEY_MESSAGE = (
+    "A chave da IA não está configurada. Coloque sua chave da Anthropic em "
+    "ANTHROPIC_API_KEY no arquivo .env e reinicie o servidor."
+)
+
+def has_credentials():
+    return bool(os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN"))
+
 def sellpy_agent(db, user, message):
+    if not has_credentials():
+        logger.error("ANTHROPIC_API_KEY não configurada")
+        return NO_KEY_MESSAGE
+
     agora = now_local()
     # A data vai na mensagem, não no system prompt, para o system prompt ficar sempre igual (cache)
     contexto = f"[Agora: {agora.strftime('%A, %d/%m/%Y %H:%M')} (horário de Brasília)]\n{message}"
