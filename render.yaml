@@ -1,5 +1,3 @@
-# Deploy gratuito no Render: New > Blueprint > escolha este repositório.
-# O plano free dorme sem uso (custo zero) e acorda na primeira requisição (~30s).
 services:
   - type: web
     name: sellpy

@@ -1,12 +1,6 @@
+import ambiente_de_teste
+
 import os
-
-# Precisa vir antes de importar o app
-os.environ["DATABASE_URL"] = "sqlite:///./test_sellpy.db"
-os.environ["SELLPY_REMINDERS"] = "false"
-os.environ["ANTHROPIC_API_KEY"] = "teste"
-os.environ["WHATSAPP_VERIFY_TOKEN"] = "token-de-teste"
-os.environ["WHATSAPP_APP_SECRET"] = "segredo-de-teste"
-
 from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
@@ -48,8 +42,7 @@ def response(*blocks, stop_reason=None):
         stop_reason = "tool_use" if any(b.type == "tool_use" for b in blocks) else "end_turn"
     return SimpleNamespace(content=list(blocks), stop_reason=stop_reason)
 
-class FakeClaude:
-    """Faz o papel da API da Anthropic: devolve respostas prontas e guarda as chamadas."""
+class FakeAnthropicClient:
     def __init__(self, *responses):
         self.responses = list(responses)
         self.calls = []
@@ -62,7 +55,7 @@ class FakeClaude:
 @pytest.fixture
 def fake_claude(monkeypatch):
     def install(*responses):
-        fake = FakeClaude(*responses)
+        fake = FakeAnthropicClient(*responses)
         monkeypatch.setattr(agent, "client", fake)
         return fake
     return install

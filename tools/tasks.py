@@ -1,19 +1,19 @@
 from database import models
-from .dates import local_to_utc, format_local
+from .dates import brasilia_iso_to_utc_without_timezone, format_in_brasilia
 
 def add_task(db, user, title, description="", remind_at=None):
     task = models.Tasks(
         user_id=user.id,
         title=title,
         description=description,
-        remind_at=local_to_utc(remind_at) if remind_at else None
+        remind_at=brasilia_iso_to_utc_without_timezone(remind_at) if remind_at else None
     )
     db.add(task)
     db.commit()
 
     message = f"Tarefa #{task.id} '{title}' anotada."
     if task.remind_at:
-        message += f" Vou te lembrar em {format_local(task.remind_at)}."
+        message += f" Vou te lembrar em {format_in_brasilia(task.remind_at)}."
     return message
 
 def list_tasks(db, user, status="pendente"):
@@ -28,7 +28,7 @@ def list_tasks(db, user, status="pendente"):
     for task in tasks:
         linha = f"#{task.id} [{task.status}] {task.title}"
         if task.remind_at:
-            linha += f" (lembrete {format_local(task.remind_at)})"
+            linha += f" (lembrete {format_in_brasilia(task.remind_at)})"
         linhas.append(linha)
     return "\n".join(linhas)
 

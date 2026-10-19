@@ -4,12 +4,12 @@ import anthropic
 
 from database import models
 from tools.registry import TOOLS, run_tool
-from tools.dates import now_local
+from tools.dates import now_brasilia
 
 logger = logging.getLogger("sellpy")
 
-# Haiku é o modelo mais barato da Anthropic, dá conta de anotar gastos e tarefas
-MODEL = os.getenv("SELLPY_MODEL", "claude-haiku-5-5")
+CHEAPEST_CLAUDE_MODEL = "claude-haiku-5-5"
+MODEL = os.getenv("SELLPY_MODEL") or CHEAPEST_CLAUDE_MODEL
 MAX_TOOL_ROUNDS = 6
 HISTORY_SIZE = 12
 
@@ -34,27 +34,40 @@ Como agir:
 client = anthropic.Anthropic()
 
 def load_history(db, user):
-    messages = db.query(models.ChatMessage)\
-        .filter(models.ChatMessage.user_id == user.id)\
-        .order_by(models.ChatMessage.id.desc())\
+    messages = db.query(models.ChatHistoryMessage)\
+        .filter(models.ChatHistoryMessage.user_id == user.id)\
+        .order_by(models.ChatHistoryMessage.id.desc())\
         .limit(HISTORY_SIZE).all()
     history = [{"role": m.role, "content": m.content} for m in reversed(messages)]
+    return starting_with_user_message(history)
 
-    # A conversa enviada para a API precisa começar com uma mensagem do usuário
+def starting_with_user_message(history):
     while history and history[0]["role"] != "user":
         history.pop(0)
     return history
 
+def with_current_time(message):
+    agora = now_brasilia()
+    return f"[Agora: {agora.strftime('%A, %d/%m/%Y %H:%M')} (horário de Brasília)]\n{message}"
+
 def save_message(db, user, role, content):
-    db.add(models.ChatMessage(user_id=user.id, role=role, content=content))
+    db.add(models.ChatHistoryMessage(user_id=user.id, role=role, content=content))
     db.commit()
 
-def sellpy_agent(db, user, message):
-    agora = now_local()
-    # A data vai na mensagem, não no system prompt, para o system prompt ficar sempre igual (cache)
-    contexto = f"[Agora: {agora.strftime('%A, %d/%m/%Y %H:%M')} (horário de Brasília)]\n{message}"
+NO_KEY_MESSAGE = (
+    "A chave da IA não está configurada. Coloque sua chave da Anthropic em "
+    "ANTHROPIC_API_KEY no arquivo .env e reinicie o servidor."
+)
 
-    messages = load_history(db, user) + [{"role": "user", "content": contexto}]
+def has_credentials():
+    return bool(os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN"))
+
+def sellpy_agent(db, user, message):
+    if not has_credentials():
+        logger.error("ANTHROPIC_API_KEY não configurada")
+        return NO_KEY_MESSAGE
+
+    messages = load_history(db, user) + [{"role": "user", "content": with_current_time(message)}]
     reply = None
 
     try:

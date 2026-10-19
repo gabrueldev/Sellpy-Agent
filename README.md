@@ -33,9 +33,43 @@ e ela já anota como "27 reais em compras", separando por categorias. Assim voc�
 
 Cada número de WhatsApp tem seus próprios dados: um usuário nunca vê os dados de outro.
 
-## Teste sem WhatsApp
+## Teste na sua máquina
 
-A rota `/` abre uma **demo web** com um chat no estilo WhatsApp. Ela usa a mesma IA e as mesmas ferramentas, e cada visitante ganha uma conversa separada. Assim qualquer pessoa testa sem cadastrar número.
+Não tem demo online: o projeto roda na sua máquina, com a sua chave da IA. Leva uns 3 minutos.
+
+**Você vai precisar de:** Python 3.12+ e uma chave da API da Anthropic ([console.anthropic.com](https://console.anthropic.com) → API Keys). Com o Claude Haiku, cada mensagem custa uma fração de centavo.
+
+    git clone https://github.com/gabrueldev/Sellpy-Agent.git
+    cd Sellpy-Agent
+    pip install -r requirements.txt
+    cp .env.example .env      # cole sua chave em ANTHROPIC_API_KEY
+    uvicorn main:app --reload
+
+Abra **http://localhost:8000**. Vai aparecer um chat no estilo WhatsApp, com sugestões de mensagens para clicar. Ele usa a mesma IA e as mesmas ferramentas da versão de WhatsApp. O banco é um SQLite criado automaticamente, então não precisa instalar mais nada.
+
+Quer ver funcionando sem nenhuma chave? Os testes simulam a IA e mostram o fluxo inteiro:
+
+    pytest -v
+
+Com Docker (sobe o Postgres junto):
+
+    docker compose up --build
+
+### Variáveis do `.env`
+
+| Variável | Para que serve |
+|---|---|
+| `ANTHROPIC_API_KEY` | Chave da IA ([console.anthropic.com](https://console.anthropic.com) → API Keys). Única obrigatória para testar |
+| `SELLPY_MODEL` | Modelo do Claude. Vazio usa `claude-haiku-5-5`, o mais barato |
+| `DATABASE_URL` | Postgres. Vazio usa um SQLite local (`sellpy.db`) |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | Dados do app na Meta (*WhatsApp > API Setup*). Só para usar pelo WhatsApp |
+| `WHATSAPP_VERIFY_TOKEN` | Um texto qualquer que você inventa e repete no painel da Meta ao cadastrar o webhook |
+| `WHATSAPP_APP_SECRET` | *App settings > Basic* na Meta. Serve para conferir que as mensagens vieram mesmo da Meta |
+| `SELLPY_ENV` | `dev` aceita webhook sem assinatura se não houver `WHATSAPP_APP_SECRET`. Em produção use `production` |
+| `SELLPY_DAILY_LIMIT` | Mensagens por dia para cada número de WhatsApp |
+| `SELLPY_DEMO_LIMIT_PER_VISITOR` | Mensagens por dia para cada visitante do chat web |
+| `SELLPY_DEMO_LIMIT_ALL_VISITORS` | Mensagens por dia somando todos os visitantes do chat web |
+| `SELLPY_DEMO_ENABLED` | `false` desliga o chat web |
 
 ## Como funciona
 
@@ -56,7 +90,7 @@ O agente usa **tool use** da API da Anthropic. A IA não inventa números: para 
 + WhatsApp Cloud API (Meta)
 + SQLAlchemy + PostgreSQL (SQLite no desenvolvimento)
 + Docker Compose
-+ Pytest | 24 testes, com a IA simulada (os testes não gastam nada)
++ Pytest | 25 testes, com a IA simulada (os testes não gastam nada)
 + CI com GitHub Actions
 
 ## Segurança e custo
@@ -66,23 +100,9 @@ O agente usa **tool use** da API da Anthropic. A IA não inventa números: para 
 + Usa o **Claude Haiku**, o modelo mais barato, com esforço baixo. A IA só cobra quando alguém manda mensagem: **parada, custa zero**.
 + Limite de mensagens por dia para cada usuário, para cada visitante da demo e para a demo inteira. Todos configuráveis no `.env`.
 
-## Rodando localmente
+## Colocando no ar (opcional)
 
-    cp .env.example .env      # coloque sua ANTHROPIC_API_KEY
-    pip install -r requirements.txt
-    uvicorn main:app --reload
-
-Abra **http://localhost:8000** para usar a demo. Sem `DATABASE_URL`, o projeto usa um SQLite local.
-
-Com Docker (já sobe o Postgres junto):
-
-    docker compose up --build
-
-Testes:
-
-    pytest
-
-## Colocando no ar de graça
+O projeto já vem pronto para deploy gratuito, caso você queira um link público.
 
 1. **Banco:** crie um Postgres gratuito no [Neon](https://neon.tech) e copie a connection string.
 2. **Servidor:** no [Render](https://render.com), escolha *New > Blueprint* e selecione este repositório. O `render.yaml` já configura tudo no plano free, que dorme quando ninguém usa. Preencha `DATABASE_URL` e `ANTHROPIC_API_KEY`.

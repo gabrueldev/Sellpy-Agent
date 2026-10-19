@@ -9,7 +9,6 @@ logger = logging.getLogger("sellpy")
 GRAPH_URL = "https://graph.facebook.com/v21.0"
 
 def send_message(phone, text):
-    """Envia uma mensagem de texto pela WhatsApp Cloud API da Meta."""
     token = os.getenv("WHATSAPP_TOKEN")
     phone_number_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
     if not token or not phone_number_id:
@@ -32,12 +31,13 @@ def send_message(phone, text):
         return False
     return True
 
-def valid_signature(body: bytes, signature: str | None):
-    """Confere se a requisição veio mesmo da Meta (header X-Hub-Signature-256)."""
+def running_in_development():
+    return os.getenv("SELLPY_ENV", "dev") == "dev"
+
+def is_signed_by_meta(body: bytes, signature: str | None):
     app_secret = os.getenv("WHATSAPP_APP_SECRET")
     if not app_secret:
-        # Sem o segredo configurado não dá para validar; só aceitável em desenvolvimento
-        return os.getenv("SELLPY_ENV", "dev") == "dev"
+        return running_in_development()
     if not signature or not signature.startswith("sha256="):
         return False
 
@@ -45,7 +45,6 @@ def valid_signature(body: bytes, signature: str | None):
     return hmac.compare_digest(expected, signature.removeprefix("sha256="))
 
 def extract_text_messages(payload):
-    """Tira do webhook da Meta só as mensagens de texto: [(id, telefone, texto)]."""
     found = []
     for entry in payload.get("entry", []):
         for change in entry.get("changes", []):

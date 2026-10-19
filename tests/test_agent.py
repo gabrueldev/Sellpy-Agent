@@ -15,8 +15,8 @@ def test_agente_registra_gasto_com_ferramenta(db, user, fake_claude):
     assert reply == "Anotado! Gasto de *R$ 16,00* em alimentação 🥟"
     assert db.query(models.Transaction).first().value == 16
 
-    # Segunda chamada leva o resultado da ferramenta de volta para a IA
-    resultado = fake.calls[1]["messages"][-1]["content"][0]
+    resultado_devolvido_para_a_ia = fake.calls[1]["messages"][-1]["content"][0]
+    resultado = resultado_devolvido_para_a_ia
     assert resultado["type"] == "tool_result"
     assert "R$ 16,00" in resultado["content"]
     assert resultado["is_error"] is False
@@ -51,3 +51,7 @@ def test_para_depois_de_muitas_rodadas(db, user, fake_claude):
     reply = agent.sellpy_agent(db, user, "lista minhas notas")
     assert reply == "Feito! ✅"
     assert len(fake.calls) == agent.MAX_TOOL_ROUNDS
+
+def test_sem_chave_explica_o_que_falta(db, user, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY")
+    assert "ANTHROPIC_API_KEY" in agent.sellpy_agent(db, user, "oi")

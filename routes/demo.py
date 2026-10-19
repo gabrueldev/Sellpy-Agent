@@ -9,13 +9,12 @@ from sqlalchemy.orm import Session
 import agents.sellpy_agent as agent
 from database import models
 from database.connect import get_db
-from services.users import get_or_create_user, use_message_quota, LIMIT_MESSAGE
-from tools.dates import now_local
+from services.users import get_or_create_user, try_to_consume_daily_message, LIMIT_MESSAGE
+from tools.dates import now_brasilia
 
 router = APIRouter(tags=["demo"])
 
-# Limite somado de todos os visitantes da demo por dia, para a conta da IA nunca passar disso
-DEMO_GLOBAL_LIMIT = int(os.getenv("SELLPY_DEMO_GLOBAL_LIMIT", "300"))
+DEMO_DAILY_LIMIT_ALL_VISITORS = int(os.getenv("SELLPY_DEMO_LIMIT_ALL_VISITORS", "300"))
 
 class DemoMessage(BaseModel):
     session_id: uuid.UUID
@@ -27,8 +26,8 @@ def demo_page():
 
 def demo_messages_today(db):
     return db.query(func.coalesce(func.sum(models.User.messages_today), 0)).filter(
-        models.User.external_id.like("demo:%"),
-        models.User.messages_date == now_local().date()
+        models.User.external_id.like(f"{models.DEMO_PREFIX}%"),
+        models.User.messages_date == now_brasilia().date()
     ).scalar()
 
 @router.post("/demo/chat")
@@ -36,11 +35,11 @@ def demo_chat(data: DemoMessage, db: Session = Depends(get_db)):
     if os.getenv("SELLPY_DEMO_ENABLED", "true") != "true":
         raise HTTPException(status_code=404, detail="Demo desativada")
 
-    if demo_messages_today(db) >= DEMO_GLOBAL_LIMIT:
+    if demo_messages_today(db) >= DEMO_DAILY_LIMIT_ALL_VISITORS:
         return {"response": "A demo atingiu o limite de hoje. Volta amanhã! 🙏"}
 
-    user = get_or_create_user(db, f"demo:{data.session_id}")
-    if not use_message_quota(db, user):
+    user = get_or_create_user(db, f"{models.DEMO_PREFIX}{data.session_id}")
+    if not try_to_consume_daily_message(db, user):
         return {"response": LIMIT_MESSAGE}
 
     return {"response": agent.sellpy_agent(db, user, data.message)}

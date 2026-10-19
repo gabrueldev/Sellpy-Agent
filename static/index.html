@@ -226,17 +226,20 @@ Me conta o que você vendeu ou gastou do jeito que falaria no WhatsApp, por exem
     return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   }
 
-  // Converte o *negrito* do WhatsApp sem permitir HTML vindo da resposta
-  function render(text) {
+  function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
-    return div.innerHTML.replace(/\*([^*\n]+)\*/g, "<strong>$1</strong>");
+    return div.innerHTML;
+  }
+
+  function renderWhatsAppBold(text) {
+    return escapeHtml(text).replace(/\*([^*\n]+)\*/g, "<strong>$1</strong>");
   }
 
   function addMessage(text, side) {
     const el = document.createElement("div");
     el.className = `msg ${side}`;
-    el.innerHTML = render(text) + `<time>${now()}</time>`;
+    el.innerHTML = renderWhatsAppBold(text) + `<time>${now()}</time>`;
     chat.appendChild(el);
     chat.scrollTop = chat.scrollHeight;
     return el;

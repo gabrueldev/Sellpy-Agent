@@ -51,7 +51,8 @@ def test_apagar_ganho_desconta_da_meta(db, user):
 
 def test_previsao_da_meta(db, user):
     goals.create_goal(db, user, "moto", 1000, "2099-12-31")
-    transactions.add_transaction(db, user, "ganho", 140, "venda", "vendas")  # média de 20/dia em 7 dias
+    vinte_por_dia_nos_ultimos_7_dias = 140
+    transactions.add_transaction(db, user, "ganho", vinte_por_dia_nos_ultimos_7_dias, "venda", "vendas")
     status = goals.goals_status(db, user)
     assert "faltam cerca de 43 dias" in status
 
@@ -60,7 +61,8 @@ def test_tarefa_com_lembrete_no_horario_de_brasilia(db, user):
     assert "10/01 às 09:00" in mensagem
 
     tarefa = db.query(models.Tasks).first()
-    assert tarefa.remind_at.hour == 12  # 09:00 em Brasília = 12:00 UTC
+    nove_da_manha_em_brasilia_em_utc = 12
+    assert tarefa.remind_at.hour == nove_da_manha_em_brasilia_em_utc
 
 def test_concluir_tarefa(db, user):
     tasks.add_task(db, user, "ligar para cliente")

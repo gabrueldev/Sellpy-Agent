@@ -1,6 +1,4 @@
-"""Ferramentas que a IA pode chamar. Cada uma recebe o banco e o usuário da conversa,
-assim um usuário nunca enxerga os dados de outro."""
-
+from database.models import TRANSACTION_TYPES, TASK_STATUSES
 from . import transactions, goals, tasks, notes
 
 def schema(properties, required=None):
@@ -22,7 +20,7 @@ TOOLS = [
         "name": "registrar_transacao",
         "description": "Registra um ganho (venda, pagamento recebido) ou um gasto. Use sempre que o usuário mencionar dinheiro que entrou ou saiu, mesmo informalmente, como 'gastei 16 em salgado' ou '27 compras'.",
         "input_schema": schema({
-            "type": {"type": "string", "enum": ["ganho", "gasto"]},
+            "type": {"type": "string", "enum": list(TRANSACTION_TYPES)},
             "value": {"type": "number", "description": "Valor em reais"},
             "description": {"type": "string", "description": "O que foi, ex: 'salgado'"},
             "category": {"type": "string", "description": "Categoria curta em minúsculas, ex: alimentação, transporte, vendas, compras, contas, lazer"},
@@ -74,7 +72,7 @@ TOOLS = [
     {
         "name": "listar_tarefas",
         "description": "Lista as tarefas do usuário.",
-        "input_schema": schema({"status": {"type": "string", "enum": ["pendente", "concluida", "todas"]}}),
+        "input_schema": schema({"status": {"type": "string", "enum": [*TASK_STATUSES, "todas"]}}),
     },
     {
         "name": "concluir_tarefa",
@@ -128,7 +126,6 @@ HANDLERS = {
 }
 
 def run_tool(db, user, name, tool_input):
-    """Executa a ferramenta e devolve (texto, deu_erro)."""
     handler = HANDLERS.get(name)
     if not handler:
         return f"Ferramenta desconhecida: {name}", True

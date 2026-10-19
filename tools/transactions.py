@@ -2,8 +2,8 @@ from datetime import timedelta
 from sqlalchemy import func
 
 from database import models
-from .dates import now_local, local_to_utc, brl
-from .goals import update_goals
+from .dates import now_brasilia, brasilia_iso_to_utc_without_timezone, brl
+from .goals import add_income_to_goals_and_describe_progress
 
 def add_transaction(db, user, type, value, description, category):
     if value <= 0:
@@ -21,18 +21,18 @@ def add_transaction(db, user, type, value, description, category):
 
     message = f"{'Ganho' if type == 'ganho' else 'Gasto'} de {brl(value)} registrado em {category}."
     if type == "ganho":
-        message += update_goals(db, user, value)
+        message += add_income_to_goals_and_describe_progress(db, user, value)
     return message
 
 def period_start(period):
-    hoje = now_local().replace(hour=0, minute=0, second=0, microsecond=0)
+    hoje = now_brasilia().replace(hour=0, minute=0, second=0, microsecond=0)
     starts = {
         "hoje": hoje,
         "semana": hoje - timedelta(days=hoje.weekday()),
         "mes": hoje.replace(day=1),
     }
     start = starts.get(period)
-    return local_to_utc(start.isoformat()) if start else None
+    return brasilia_iso_to_utc_without_timezone(start.isoformat()) if start else None
 
 def get_summary(db, user, period="mes"):
     query = db.query(models.Transaction).filter(models.Transaction.user_id == user.id)
@@ -84,7 +84,7 @@ def delete_transaction(db, user, transaction_id):
         return "Erro: movimentação não encontrada."
 
     if transaction.type == "ganho":
-        update_goals(db, user, -transaction.value)
+        add_income_to_goals_and_describe_progress(db, user, -transaction.value)
     db.delete(transaction)
     db.commit()
     return f"Movimentação #{transaction_id} apagada."
